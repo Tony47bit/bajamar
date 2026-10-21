@@ -4,48 +4,27 @@ name: Android CI
 on:
   push:
     branches: ["main"]
-  pull_request:
-    branches: ["main"]
   workflow_dispatch:
 
 jobs:
-  build:
+  inspect:
     runs-on: ubuntu-latest
-
-    defaults:
-      run:
-        working-directory: bajamar
 
     steps:
       - name: Descargar repositorio
         uses: actions/checkout@v4
 
-      - name: Configurar Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
-          cache: gradle
-          cache-dependency-path: bajamar/gradle/wrapper/gradle-wrapper.properties
-
-      - name: Comprobar estructura del proyecto
+      - name: Inspeccionar archivos
         run: |
+          echo "=== RAIZ DEL REPOSITORIO ==="
           pwd
           ls -la
-          test -f gradlew || {
-            echo "ERROR: No existe bajamar/gradlew"
-            exit 1
-          }
 
-      - name: Dar permisos al Gradle Wrapper
-        run: chmod +x gradlew
-
-      - name: Compilar APK
-        run: ./gradlew assembleDebug --stacktrace
-
-      - name: Subir APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: bajamar-debug-apk
-          path: bajamar/app/build/outputs/apk/debug/*.apk
-          if-no-files-found: error
+          echo "=== ARCHIVOS GRADLE ==="
+          find . -maxdepth 5 \
+            \( -name gradlew \
+            -o -name settings.gradle \
+            -o -name settings.gradle.kts \
+            -o -name build.gradle \
+            -o -name build.gradle.kts \) \
+            -type f -print
