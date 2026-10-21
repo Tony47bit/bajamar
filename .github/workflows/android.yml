@@ -4,26 +4,39 @@ name: Android CI
 on:
   push:
     branches: ["main"]
+  pull_request:
+    branches: ["main"]
   workflow_dispatch:
 
 jobs:
-  inspect:
+  build:
     runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: bajamar
 
     steps:
       - name: Descargar repositorio
         uses: actions/checkout@v4
 
-      - name: Diagnosticar estructura
-        run: |
-          echo "=== RAIZ DEL REPOSITORIO ==="
-          pwd
-          ls -la
+      - name: Configurar Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+          cache-dependency-path: bajamar/gradle/wrapper/gradle-wrapper.properties
 
-          echo "=== ARCHIVOS GRADLE ==="
-          find . -maxdepth 6 -type f \
-            \( -name gradlew \
-            -o -name settings.gradle \
-            -o -name settings.gradle.kts \
-            -o -name build.gradle \
-            -o -name build.gradle.kts \) -print
+      - name: Dar permisos al Gradle Wrapper
+        run: chmod +x gradlew
+
+      - name: Compilar APK
+        run: ./gradlew assembleDebug --stacktrace
+
+      - name: Subir APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: bajamar-debug-apk
+          path: bajamar/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
