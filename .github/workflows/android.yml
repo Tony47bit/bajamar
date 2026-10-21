@@ -1,0 +1,29 @@
+
+name: Android CI
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      - name: Diagnosticar estructura
+        run: |
+          echo "=== RAIZ DEL REPOSITORIO ==="
+          pwd
+          ls -la
+
+          echo "=== ARCHIVOS GRADLE ==="
+          find . -maxdepth 6 -type f \
+            \( -name gradlew \
+            -o -name settings.gradle \
+            -o -name settings.gradle.kts \
+            -o -name build.gradle \
+            -o -name build.gradle.kts \) -print
