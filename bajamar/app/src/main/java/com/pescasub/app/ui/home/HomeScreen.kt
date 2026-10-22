@@ -39,7 +39,6 @@ import com.pescasub.app.domain.Spot
 import com.pescasub.app.ui.AppTopBar
 import com.pescasub.app.ui.Fmt
 import com.pescasub.app.ui.MetricTile
-import com.pescasub.app.ui.NO_VISIBILITY_TEXT
 import com.pescasub.app.ui.RATING_DISCLAIMER
 import com.pescasub.app.ui.SectionCard
 import com.pescasub.app.ui.conditions.ConditionsUiState
@@ -47,6 +46,7 @@ import com.pescasub.app.ui.conditions.ConditionsViewModel
 import com.pescasub.app.ui.conditions.ForecastGate
 import com.pescasub.app.ui.conditions.SpotActions
 import com.pescasub.app.ui.conditions.SpotPickerDialog
+import com.pescasub.app.ui.conditions.VisibilityCard
 import com.pescasub.app.ui.factorText
 import com.pescasub.app.ui.forecastErrorText
 import com.pescasub.app.ui.ratingLabel
@@ -91,7 +91,7 @@ private fun HomeContent(
             item { NowCard(spot, current, bundle) }
             item { RatingCard(current) }
         }
-        item { SectionCard(null) { Text(NO_VISIBILITY_TEXT, style = MaterialTheme.typography.bodySmall) } }
+        item { VisibilityCard(state.visibility, state.visibilityLoading, bundle) }
         item { TidesCard(bundle, now) }
         item { HourlyCard(bundle, now) }
         item { DaysCard(bundle, onOpenForecast) }
@@ -258,10 +258,11 @@ private fun HourlyCard(bundle: ForecastBundle, now: Instant) {
 
 @Composable
 private fun DaysCard(bundle: ForecastBundle, onOpenForecast: () -> Unit) {
-    SectionCard("Próximos días") {
+    SectionCard("Hoy y mañana") {
+        val today = bundle.windowDates(Instant.now()).first()
         bundle.daily().forEach { d ->
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(Fmt.dayShort(d.date), modifier = Modifier.weight(1f))
+                Text(Fmt.dayRelative(d.date, today), modifier = Modifier.weight(1f))
                 Text(
                     "${Fmt.temp(d.tempMinC)} / ${Fmt.temp(d.tempMaxC)}",
                     modifier = Modifier.weight(1.4f)

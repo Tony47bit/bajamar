@@ -16,6 +16,12 @@ import com.pescasub.app.domain.SavedLocation
 import com.pescasub.app.domain.Spot
 import com.pescasub.app.domain.SpotStore
 import com.pescasub.app.domain.WeatherRepository
+import com.pescasub.app.domain.visibility.ClarityFetch
+import com.pescasub.app.domain.visibility.NoWaterClarity
+import com.pescasub.app.domain.visibility.VisibilityEstimate
+import com.pescasub.app.domain.visibility.VisibilityEstimator
+import com.pescasub.app.domain.visibility.WaterClarityRepository
+import java.time.Clock
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -33,7 +39,10 @@ data class ConditionsUiState(
     val loading: Boolean = false,
     val bundle: ForecastBundle? = null,
     /** Error del último intento. Si `bundle` no es nulo, son datos guardados anteriores. */
-    val error: ForecastError? = null
+    val error: ForecastError? = null,
+    /** Visibilidad submarina estimada para `bundle` (null mientras se calcula o si no hay previsión). */
+    val visibility: VisibilityEstimate? = null,
+    val visibilityLoading: Boolean = false
 )
 
 data class SearchUiState(
@@ -52,7 +61,9 @@ class ConditionsViewModel(
     private val spotStore: SpotStore,
     private val weather: WeatherRepository,
     locations: LocationRepository,
-    private val places: PlaceSearch
+    private val places: PlaceSearch,
+    private val clarity: WaterClarityRepository = NoWaterClarity,
+    private val clock: Clock = Clock.systemUTC()
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ConditionsUiState())
@@ -77,7 +88,7 @@ class ConditionsViewModel(
                     load(spot, force = false)
                 } else if (s.loaded) {
                     loadJob?.cancel()
-                    _state.update { it.copy(bundle = null, error = null, loading = false) }
+                    _state.update { it.copy(bundle = null, error = null, loading = false, visibility = null, visibilityLoading = false) }
                 }
             }
         }
@@ -89,14 +100,48 @@ class ConditionsViewModel(
             val target = spot.coordinates.coarse()
             _state.update {
                 // Se conservan los datos solo si son de la misma posición (evita mostrar otro lugar).
-                it.copy(loading = true, error = null, bundle = it.bundle?.takeIf { b -> b.coordinates == target })
+                val same = it.bundle?.takeIf { b -> b.coordinates == target }
+                it.copy(
+                    loading = true, error = null, bundle = same,
+                    visibility = if (same != null) it.visibility else null
+                )
             }
-            when (val result = weather.getForecast(spot.coordinates, force)) {
-                is ForecastResult.Fresh -> _state.update { it.copy(loading = false, bundle = result.bundle, error = null) }
-                is ForecastResult.Stale -> _state.update { it.copy(loading = false, bundle = result.bundle, error = result.error) }
-                is ForecastResult.Failed -> _state.update { it.copy(loading = false, error = result.error) }
+            val bundle = when (val result = weather.getForecast(spot.coordinates, force)) {
+                is ForecastResult.Fresh -> {
+                    _state.update { it.copy(loading = false, bundle = result.bundle, error = null) }
+                    result.bundle
+                }
+                is ForecastResult.Stale -> {
+                    _state.update { it.copy(loading = false, bundle = result.bundle, error = result.error) }
+                    result.bundle
+                }
+                is ForecastResult.Failed -> {
+                    _state.update { it.copy(loading = false, error = result.error) }
+                    _state.value.bundle
+                }
             }
+            if (bundle != null) estimateVisibility(spot, bundle)
         }
+    }
+
+    /** Pide la última observación de transparencia y calcula la estimación; nunca bloquea la previsión. */
+    private suspend fun estimateVisibility(spot: Spot, bundle: ForecastBundle) {
+        _state.update { it.copy(visibilityLoading = true) }
+        val fetch = try {
+            clarity.latest(spot.coordinates)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            ClarityFetch(null, refreshFailed = true)
+        }
+        val estimate = VisibilityEstimator.estimate(
+            obs = fetch.observation,
+            recent = bundle.recent,
+            upcoming = bundle.hourly,
+            now = clock.instant(),
+            refreshFailed = fetch.refreshFailed
+        )
+        _state.update { it.copy(visibility = estimate, visibilityLoading = false) }
     }
 
     fun refresh() {
@@ -147,7 +192,8 @@ class ConditionsViewModel(
                     container.spotStore,
                     container.weatherRepository,
                     container.locationRepository,
-                    container.placeSearch
+                    container.placeSearch,
+                    container.waterClarityRepository
                 )
             }
         }

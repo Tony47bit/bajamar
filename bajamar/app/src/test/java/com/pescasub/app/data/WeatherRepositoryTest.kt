@@ -211,4 +211,35 @@ class WeatherRepositoryTest {
         }
         assertEquals(4, rejected)
     }
+
+    @Test
+    fun recentCacheFromYesterdayIsNotServedAsFreshAfterLocalMidnight() = run {
+        clock.now = Instant.parse("2026-10-20T23:50:00Z")
+        repo.getForecast(spot) // guarda en caché
+        assertEquals(1, provider.fetchCount)
+
+        clock.now = Instant.parse("2026-10-21T00:10:00Z") // 20 min después, pero ya es otro día (zona UTC)
+        val r = repo.getForecast(spot) as ForecastResult.Fresh
+        assertEquals("debe volver a pedir: la caché no cubre el día actual", 2, provider.fetchCount)
+        assertEquals(false, r.bundle.fromCache)
+    }
+
+    @Test
+    fun staleCacheWithNoHoursInTheWindowIsNotServed() = run {
+        repo.getForecast(spot)
+        clock.now = t0.plus(Duration.ofHours(40)) // dentro de 48 h, pero los datos son de anteayer
+        provider.error = IOException("sin red")
+        val r = repo.getForecast(spot)
+        assertTrue("no debe mostrar días pasados como si fueran hoy", r is ForecastResult.Failed)
+    }
+
+    @Test
+    fun staleCacheStillCoveringTodayIsServedWithTheError() = run {
+        repo.getForecast(spot)
+        clock.now = t0.plus(Duration.ofHours(2))
+        provider.error = IOException("sin red")
+        val r = repo.getForecast(spot) as ForecastResult.Stale
+        assertEquals(ForecastError.NETWORK, r.error)
+        assertTrue(r.bundle.hourly.all { r.bundle.localDate(it.time) in r.bundle.windowDates(clock.now) })
+    }
 }

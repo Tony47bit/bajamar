@@ -13,7 +13,14 @@ import com.pescasub.app.testing.FakeWeatherRepository
 import com.pescasub.app.testing.bundle
 import com.pescasub.app.testing.location
 import com.pescasub.app.ui.conditions.ConditionsViewModel
+import com.pescasub.app.domain.visibility.ClarityFetch
+import com.pescasub.app.domain.visibility.NotEstimableReason
+import com.pescasub.app.domain.visibility.VisibilityEstimate
+import com.pescasub.app.domain.visibility.WaterClarityObservation
+import com.pescasub.app.domain.visibility.WaterClarityRepository
 import java.io.IOException
+import java.time.Clock
+import java.time.ZoneOffset
 import java.time.Instant
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -191,5 +198,57 @@ class ConditionsViewModelTest {
         vm.search("Tarifa")
         vm.clearSearch()
         assertEquals(com.pescasub.app.ui.conditions.SearchUiState(), vm.search.value)
+    }
+
+    // --- Visibilidad submarina (el cálculo se prueba en VisibilityEstimatorTest; aquí, el cableado) ---
+
+    private class FakeClarity(var fetch: () -> ClarityFetch) : WaterClarityRepository {
+        var calls = 0
+        override suspend fun latest(coordinates: Coordinates): ClarityFetch {
+            calls++
+            return fetch()
+        }
+    }
+
+    private val fixedClock = Clock.fixed(Instant.parse("2026-10-20T10:00:00Z"), ZoneOffset.UTC)
+
+    private fun vmWith(clarity: WaterClarityRepository) =
+        ConditionsViewModel(FakeSpotStore(initial = malaga), weather, locations, places, clarity, fixedClock)
+
+    @Test
+    fun visibilityIsEstimatedFromTheSatelliteObservation() {
+        val obs = WaterClarityObservation(0.17, Instant.parse("2026-10-19T12:00:00Z"), "Satélite de prueba")
+        val s = vmWith(FakeClarity { ClarityFetch(obs) }).state.value
+        val e = s.visibility as VisibilityEstimate.Estimated
+        assertEquals(5, e.minMeters)
+        assertFalse(s.visibilityLoading)
+    }
+
+    @Test
+    fun withoutObservationVisibilityIsNotEstimableAndNothingIsInvented() {
+        val s = vmWith(FakeClarity { ClarityFetch(null) }).state.value
+        assertEquals(
+            NotEstimableReason.NO_OBSERVATION,
+            (s.visibility as VisibilityEstimate.NotEstimable).reason
+        )
+        assertNotNull(s.bundle) // la previsión no depende de la visibilidad
+    }
+
+    @Test
+    fun aVisibilityFetchCrashNeverBreaksTheForecast() {
+        val s = vmWith(FakeClarity { throw IOException("sin red") }).state.value
+        assertNotNull(s.bundle)
+        assertTrue(s.visibility is VisibilityEstimate.NotEstimable)
+        assertFalse(s.visibilityLoading)
+    }
+
+    @Test
+    fun noVisibilityIsComputedWhenThereIsNoForecast() {
+        weather.result = ForecastResult.Failed(ForecastError.NETWORK)
+        val clarity = FakeClarity { ClarityFetch(null) }
+        val s = vmWith(clarity).state.value
+        assertNull(s.bundle)
+        assertNull(s.visibility)
+        assertEquals(0, clarity.calls)
     }
 }

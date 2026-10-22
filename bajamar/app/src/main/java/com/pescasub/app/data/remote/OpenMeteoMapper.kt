@@ -37,6 +37,7 @@ object OpenMeteoMapper {
                 windSpeedKmh = w.windSpeed10m.valueAt(i),
                 windGustsKmh = w.windGusts10m.valueAt(i),
                 windDirectionDeg = w.windDirection10m.valueAt(i),
+                precipitationMm = w.precipitation.valueAt(i),
                 waveHeightM = marine?.waveHeight?.valueAt(mi),
                 waveDirectionDeg = marine?.waveDirection?.valueAt(mi),
                 wavePeriodS = marine?.wavePeriod?.valueAt(mi),

@@ -5,6 +5,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import com.pescasub.app.data.local.AppDatabase
 import com.pescasub.app.data.local.RoomLocationRepository
 import com.pescasub.app.data.local.RoomLogbookRepository
+import com.pescasub.app.data.remote.ErddapClarityRepository
 import com.pescasub.app.data.remote.OpenMeteoForecastApi
 import com.pescasub.app.data.remote.OpenMeteoGeocodingApi
 import com.pescasub.app.data.remote.OpenMeteoMarineApi
@@ -21,6 +22,7 @@ import com.pescasub.app.domain.PlaceSearch
 import com.pescasub.app.domain.SpotStore
 import com.pescasub.app.domain.WeatherProvider
 import com.pescasub.app.domain.WeatherRepository
+import com.pescasub.app.domain.visibility.WaterClarityRepository
 import java.time.Clock
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
@@ -73,6 +75,9 @@ class AppContainer(context: Context) {
 
     val weatherRepository: WeatherRepository =
         DefaultWeatherRepository(weatherProvider, database.forecastCacheDao(), Clock.systemUTC())
+
+    /** Transparencia del agua (satélite NOAA, sin clave): base del cálculo de visibilidad submarina. */
+    val waterClarityRepository: WaterClarityRepository = ErddapClarityRepository(httpClient, Clock.systemUTC())
 
     val placeSearch: PlaceSearch = OpenMeteoPlaceSearch(
         retrofit("https://geocoding-api.open-meteo.com/").create(OpenMeteoGeocodingApi::class.java)

@@ -50,7 +50,9 @@ data class HourlyConditions(
     val swellDirectionDeg: Double? = null,
     val swellPeriodS: Double? = null,
     val seaTempC: Double? = null,
-    val seaLevelM: Double? = null
+    val seaLevelM: Double? = null,
+    /** Precipitación de la hora (mm). Solo se usa como contexto del modelo de visibilidad. */
+    val precipitationMm: Double? = null
 )
 
 enum class TideType { HIGH, LOW }
@@ -65,6 +67,15 @@ data class DailySummary(
     val waveMaxM: Double?
 )
 
+/** Número de días de previsión que muestra la app: hoy y mañana. */
+const val FORECAST_WINDOW_DAYS = 2
+
+/**
+ * Días anteriores a hoy que se piden a la API solo como CONTEXTO del modelo de visibilidad (oleaje y lluvia
+ * recientes). Nunca se muestran: `limitedToWindow` los aparta en `ForecastBundle.recent`.
+ */
+const val RECENT_CONTEXT_DAYS = 2
+
 data class ForecastBundle(
     /** Coordenadas (redondeadas) realmente consultadas. */
     val coordinates: Coordinates,
@@ -75,9 +86,39 @@ data class ForecastBundle(
     val tides: List<TideExtreme>,
     val hasMarineData: Boolean,
     val notes: List<String>,
-    val fromCache: Boolean = false
+    val fromCache: Boolean = false,
+    /** Horas de los días previos (solo contexto del modelo de visibilidad; no se muestran). */
+    val recent: List<HourlyConditions> = emptyList()
 ) {
     fun localDate(time: Instant): LocalDate = time.atZone(zone).toLocalDate()
+
+    /** Fechas de la ventana de previsión (hoy y mañana) según la zona horaria de la ubicación, no la del móvil. */
+    fun windowDates(now: Instant): List<LocalDate> {
+        val today = localDate(now)
+        return List(FORECAST_WINDOW_DAYS) { today.plusDays(it.toLong()) }
+    }
+
+    /**
+     * Copia que solo contiene hoy y mañana (días locales de la ubicación). Se aplica tanto a datos recién
+     * descargados como a los de la caché, de modo que nunca se muestran ni se usan días pasados o lejanos.
+     */
+    fun limitedToWindow(now: Instant): ForecastBundle {
+        val days = windowDates(now).toSet()
+        val windowStart = windowDates(now).first().atStartOfDay(zone).toInstant()
+        val contextStart = windowStart.minusSeconds(RECENT_CONTEXT_DAYS * 24L * 3600L)
+        val all = hourly + recent
+        return copy(
+            hourly = all.filter { localDate(it.time) in days }.sortedBy { it.time },
+            recent = all.filter { it.time < windowStart && it.time >= contextStart }.sortedBy { it.time },
+            tides = tides.filter { localDate(it.time) in days }
+        )
+    }
+
+    /** `true` si hay datos del día local actual (si no, la caché es de otro día y hay que renovarla). */
+    fun coversToday(now: Instant): Boolean {
+        val today = localDate(now)
+        return hourly.any { localDate(it.time) == today }
+    }
 
     fun dates(): List<LocalDate> = hourly.map { localDate(it.time) }.distinct()
 

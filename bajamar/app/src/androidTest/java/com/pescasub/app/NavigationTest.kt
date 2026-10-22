@@ -1,5 +1,6 @@
 package com.pescasub.app
 
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -31,7 +32,8 @@ class NavigationTest {
 
         rule.onNodeWithText("Perfil").performClick()
         rule.onNodeWithText("Tus datos").assertIsDisplayed()
-        rule.onNodeWithText("Exportar mis datos (JSON)").assertIsDisplayed()
+        rule.onNodeWithText("Eliminar todos mis datos").assertIsDisplayed()
+        rule.onAllNodesWithText("Exportar mis datos (JSON)").assertCountEquals(0)
     }
 
     @Test

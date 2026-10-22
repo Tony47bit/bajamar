@@ -50,7 +50,7 @@ class OpenMeteoProvider(
         }
 
     companion object {
-        const val WEATHER_VARS = "temperature_2m,wind_speed_10m,wind_gusts_10m,wind_direction_10m"
+        const val WEATHER_VARS = "temperature_2m,wind_speed_10m,wind_gusts_10m,wind_direction_10m,precipitation"
         const val MARINE_VARS = "wave_height,wave_direction,wave_period," +
             "swell_wave_height,swell_wave_direction,swell_wave_period,sea_surface_temperature"
         const val TIDE_VARS = "sea_level_height_msl"

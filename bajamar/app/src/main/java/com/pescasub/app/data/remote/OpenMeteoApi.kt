@@ -1,5 +1,7 @@
 package com.pescasub.app.data.remote
 
+import com.pescasub.app.domain.FORECAST_WINDOW_DAYS
+import com.pescasub.app.domain.RECENT_CONTEXT_DAYS
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import retrofit2.http.GET
@@ -23,6 +25,7 @@ data class HourlyDto(
     @SerialName("wind_speed_10m") val windSpeed10m: List<Double?> = emptyList(),
     @SerialName("wind_gusts_10m") val windGusts10m: List<Double?> = emptyList(),
     @SerialName("wind_direction_10m") val windDirection10m: List<Double?> = emptyList(),
+    val precipitation: List<Double?> = emptyList(),
     @SerialName("wave_height") val waveHeight: List<Double?> = emptyList(),
     @SerialName("wave_direction") val waveDirection: List<Double?> = emptyList(),
     @SerialName("wave_period") val wavePeriod: List<Double?> = emptyList(),
@@ -61,7 +64,8 @@ interface OpenMeteoForecastApi {
         @Query("hourly") hourly: String,
         @Query("timezone") timezone: String = "auto",
         @Query("timeformat") timeFormat: String = "unixtime",
-        @Query("forecast_days") forecastDays: Int = 7
+        @Query("forecast_days") forecastDays: Int = FORECAST_WINDOW_DAYS,
+        @Query("past_days") pastDays: Int = RECENT_CONTEXT_DAYS
     ): OpenMeteoResponse
 }
 
@@ -73,7 +77,8 @@ interface OpenMeteoMarineApi {
         @Query("hourly") hourly: String,
         @Query("timezone") timezone: String = "auto",
         @Query("timeformat") timeFormat: String = "unixtime",
-        @Query("forecast_days") forecastDays: Int = 7
+        @Query("forecast_days") forecastDays: Int = FORECAST_WINDOW_DAYS,
+        @Query("past_days") pastDays: Int = RECENT_CONTEXT_DAYS
     ): OpenMeteoResponse
 }
 

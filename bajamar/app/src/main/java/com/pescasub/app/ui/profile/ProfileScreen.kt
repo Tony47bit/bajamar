@@ -1,7 +1,5 @@
 package com.pescasub.app.ui.profile
 
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -13,7 +11,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -26,19 +23,16 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.pescasub.app.BuildConfig
 import com.pescasub.app.ui.AppTopBar
 import com.pescasub.app.ui.SectionCard
 import com.pescasub.app.ui.TextRow
-import java.time.LocalDate
 
 @Composable
 fun ProfileScreen(vm: ProfileViewModel, attribution: String) {
     val state by vm.state.collectAsStateWithLifecycle()
-    val context = LocalContext.current
     val snackbar = remember { SnackbarHostState() }
     var confirmErase by remember { mutableStateOf(false) }
 
@@ -46,18 +40,6 @@ fun ProfileScreen(vm: ProfileViewModel, attribution: String) {
         state.message?.let {
             snackbar.showSnackbar(it)
             vm.messageShown()
-        }
-    }
-
-    val exportLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.CreateDocument("application/json")
-    ) { uri ->
-        if (uri != null) {
-            vm.export { json ->
-                val out = context.contentResolver.openOutputStream(uri)
-                    ?: throw java.io.IOException("No se pudo abrir el archivo de destino")
-                out.use { it.write(json.toByteArray(Charsets.UTF_8)) }
-            }
         }
     }
 
@@ -81,11 +63,6 @@ fun ProfileScreen(vm: ProfileViewModel, attribution: String) {
                             "y no se envía analítica.",
                         style = MaterialTheme.typography.bodyMedium
                     )
-                    OutlinedButton(
-                        onClick = { exportLauncher.launch("bajamar-datos-${LocalDate.now()}.json") },
-                        enabled = !state.busy,
-                        modifier = Modifier.fillMaxWidth()
-                    ) { Text("Exportar mis datos (JSON)") }
                     TextButton(
                         onClick = { confirmErase = true },
                         enabled = !state.busy,
@@ -98,6 +75,11 @@ fun ProfileScreen(vm: ProfileViewModel, attribution: String) {
                     Text(
                         "• Previsión: se envían a Open-Meteo las coordenadas de la ubicación elegida redondeadas " +
                             "a ~1 km, nunca el punto exacto ni su nombre.",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Text(
+                        "• Visibilidad submarina: se consultan a NOAA CoastWatch (ERDDAP) los datos de satélite del " +
+                            "punto elegido, con coordenadas redondeadas a ~1 km.",
                         style = MaterialTheme.typography.bodyMedium
                     )
                     Text(
@@ -124,6 +106,7 @@ fun ProfileScreen(vm: ProfileViewModel, attribution: String) {
                 SectionCard("Fuentes y licencias") {
                     Text(attribution, style = MaterialTheme.typography.bodyMedium)
                     Text("Mapa: © OpenStreetMap contributors (ODbL).", style = MaterialTheme.typography.bodyMedium)
+                    Text("Transparencia del agua: NOAA CoastWatch, VIIRS Kd490 (dominio público de EE. UU.).", style = MaterialTheme.typography.bodyMedium)
                 }
             }
             item {
@@ -154,7 +137,7 @@ fun ProfileScreen(vm: ProfileViewModel, attribution: String) {
             text = {
                 Text(
                     "Se borrarán de este dispositivo todas tus jornadas, capturas, fotos, puntos guardados y la " +
-                        "ubicación elegida. No se puede deshacer. Si quieres conservarlos, expórtalos antes."
+                        "ubicación elegida. No se puede deshacer."
                 )
             },
             confirmButton = {

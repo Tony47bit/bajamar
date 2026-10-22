@@ -8,8 +8,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -58,19 +56,19 @@ fun ForecastScreen(vm: ConditionsViewModel, attribution: String) {
 
 @Composable
 private fun ForecastContent(state: ConditionsUiState, spot: Spot, bundle: ForecastBundle, attribution: String) {
-    val dates = bundle.dates()
-    if (dates.isEmpty()) {
+    val now = remember(bundle) { Instant.now() }
+    // Solo hoy y mañana, en el día local de la ubicación (no el del móvil ni el UTC de la API).
+    val window = remember(bundle) { bundle.windowDates(now) }
+    val today = window.first()
+    if (bundle.hourly.isEmpty()) {
         SectionCard("Sin datos", Modifier.padding(16.dp)) {
-            Text("La fuente no devolvió datos horarios para esta ubicación.")
+            Text("La fuente no devolvió datos horarios para hoy ni mañana en esta ubicación.")
         }
         return
     }
-    val today = remember(bundle) { bundle.localDate(Instant.now()) }
-    // La fecha elegida se guarda como texto ISO para sobrevivir a rotaciones.
+    // La fecha elegida se guarda como texto ISO para sobrevivir a rotaciones; por defecto, hoy.
     var selectedIso by rememberSaveable(spot.coordinates.cacheKey()) { mutableStateOf<String?>(null) }
-    val date = selectedIso?.let { runCatching { LocalDate.parse(it) }.getOrNull() }?.takeIf { it in dates }
-        ?: today.takeIf { it in dates }
-        ?: dates.first()
+    val date = selectedIso?.let { runCatching { LocalDate.parse(it) }.getOrNull() }?.takeIf { it in window } ?: today
     val hours = bundle.hoursOf(date)
     val labels = hours.map { Fmt.hour(it.time, bundle.zone) }
 
@@ -88,18 +86,32 @@ private fun ForecastContent(state: ConditionsUiState, spot: Spot, bundle: Foreca
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(dates) { d ->
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    window.forEach { d ->
                         FilterChip(
                             selected = d == date,
                             onClick = { selectedIso = d.toString() },
-                            label = { Text(Fmt.dayShort(d)) }
+                            label = { Text("${Fmt.dayRelative(d, today)} · ${Fmt.dayShort(d)}") },
+                            modifier = Modifier.weight(1f)
                         )
                     }
                 }
                 Text(Fmt.dayLong(date), style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "Actualizado: ${Fmt.dateTime(bundle.fetchedAt, bundle.zone)} · ${bundle.sourceName}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                if (hours.isEmpty()) {
+                    Text(
+                        "Sin datos para este día.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
             }
         }
+        item { VisibilityCard(state.visibility, state.visibilityLoading, bundle, forTomorrow = date != today) }
         item {
             SectionCard("Viento") {
                 LineChart(

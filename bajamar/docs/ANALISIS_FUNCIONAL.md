@@ -43,7 +43,7 @@ Son suposiciones de producto, no hechos confirmados sobre Crystal.
 - Cómo se cifran o protegen los puntos GPS.
 - Si hay sincronización entre dispositivos o cuenta de usuario.
 
-Bajamar **no replica ni estima** la visibilidad ni la actividad de los peces (ver §6).
+Bajamar **estima** la visibilidad con un modelo documentado y honesto (`docs/VISIBILIDAD_SUBMARINA.md`) y **no** replica la actividad de los peces (ver §6).
 
 ## 4. Alcance de esta primera versión
 
@@ -59,7 +59,7 @@ ignoradas hasta nuevo aviso.
 | 2.5 Previsión horaria y mareas | Implementado |
 | 2.6 Sistema de alertas | **No implementado** (fuera de las prioridades) |
 | 2.7 Noticias | **No implementado** (no hay fuente autorizada integrada) |
-| 2.8 Perfil, ajustes y suscripción | **Parcial**: exportar, borrar, privacidad, fuentes y acerca de. Sin ajustes de unidades/idioma/tema (sigue el tema del sistema) ni suscripción |
+| 2.8 Perfil, ajustes y suscripción | **Parcial**: borrar, privacidad, fuentes y acerca de. Sin ajustes de unidades/idioma/tema (sigue el tema del sistema) ni suscripción |
 | Backend / sincronización / cuentas | **No hay** (decisión de privacidad, ver §7) |
 
 ## 5. Pantallas y flujos
@@ -76,7 +76,7 @@ Mapa ──toca un punto──▶ tarjeta ──Ver condiciones──▶ Inicio
 Bitácora ─▶ Detalle de jornada ─▶ Editar ─▶ (guardar) ─▶ Detalle
    │  ├─ Nueva jornada (fecha, hora, actividad, ubicación, condiciones, apnea, capturas, fotos, notas)
    │  └─ Estadísticas
-Perfil ─▶ Exportar JSON · Eliminar todos los datos · Fuentes y licencias · Acerca de
+Perfil ─▶ Eliminar todos los datos · Fuentes y licencias · Acerca de
 ```
 
 ### Ubicación y permisos
@@ -96,7 +96,7 @@ Perfil ─▶ Exportar JSON · Eliminar todos los datos · Fuentes y licencias �
 | Mareas | Nivel del mar del modelo (`sea_level_height_msl`) → pleamares/bajamares calculadas | **No es una tabla oficial de mareas**; la pantalla lo avisa |
 | Búsqueda de localidades | Open-Meteo Geocoding | Solo se envía el texto escrito |
 | Mapa | OpenStreetMap con osmdroid | Sin clave ni cuenta; atribución visible. Los puntos guardados nunca se envían |
-| **Visibilidad submarina** | **No se ofrece** | Ninguna fuente configurada la proporciona; la app lo dice expresamente |
+| **Visibilidad submarina** | **Estimación** (rango, confianza baja/media) | Kd490 de satélite NOAA + contexto de oleaje/lluvia; «no estimable» si faltan datos |
 | Valoración «favorable/aceptable/desfavorable» | Heurística propia (oleaje y viento) | Orientativa; si falta oleaje o viento nunca da «favorable» |
 
 Arquitectura: Kotlin, Jetpack Compose + Material 3, MVVM, capas `domain` (puro, sin Android) / `data` / `ui`,
@@ -112,8 +112,7 @@ tocar la lógica.
 - Copia de seguridad en la nube y transferencia entre dispositivos **desactivadas** (`allowBackup=false` y reglas de
   extracción vacías).
 - No hay registros de coordenadas en logs ni interceptores de red.
-- Exportar (JSON) y eliminar todos los datos desde Perfil.
-- Las fotos no se exportan en el JSON (solo su número).
+- Eliminar todos los datos desde Perfil (la exportación JSON se retiró).
 
 ## 8. Modelo de datos (Room, versión 1)
 

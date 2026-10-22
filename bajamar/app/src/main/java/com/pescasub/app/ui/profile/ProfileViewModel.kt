@@ -7,20 +7,15 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.pescasub.app.AppContainer
 import com.pescasub.app.data.repo.DataEraser
-import com.pescasub.app.domain.DataExporter
 import com.pescasub.app.domain.LocationRepository
 import com.pescasub.app.domain.LogbookRepository
-import java.time.Instant
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 data class ProfileUiState(
     val sessionCount: Int = 0,
@@ -46,24 +41,6 @@ class ProfileViewModel(
         viewModelScope.launch {
             locations.observeAll().catch { emit(emptyList()) }.collect { list ->
                 _state.update { it.copy(locationCount = list.size) }
-            }
-        }
-    }
-
-    /** Genera el JSON y lo entrega a `sink` (que lo escribe en el archivo que eligió el usuario). */
-    fun export(sink: suspend (String) -> Unit) {
-        viewModelScope.launch {
-            _state.update { it.copy(busy = true, message = null) }
-            try {
-                val json = withContext(Dispatchers.Default) {
-                    DataExporter.toJson(locations.observeAll().first(), logbook.observeAll().first(), Instant.now())
-                }
-                withContext(Dispatchers.IO) { sink(json) }
-                _state.update { it.copy(busy = false, message = "Datos exportados correctamente.") }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                _state.update { it.copy(busy = false, message = "No se pudo exportar. Inténtalo de nuevo.") }
             }
         }
     }

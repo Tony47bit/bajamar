@@ -43,6 +43,8 @@ class DefaultWeatherRepository(
         val cachedBundle: ForecastBundle? = if (entry != null && cachedAt != null) {
             try {
                 provider.parse(entry.payload, coarse, cachedAt).copy(fromCache = true)
+                    .limitedToWindow(clock.instant())
+                    .takeIf { it.hourly.isNotEmpty() } // caché de días ya pasados: no sirve
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -53,14 +55,17 @@ class DefaultWeatherRepository(
         }
         val cacheAge = cachedAt?.let { Duration.between(it, clock.instant()) }
 
-        if (!forceRefresh && cachedBundle != null && cacheAge != null && cacheAge < freshFor) {
+        // Una caché reciente solo vale si incluye el día local actual (p. ej. tras pasar la medianoche no).
+        if (!forceRefresh && cachedBundle != null && cacheAge != null && cacheAge < freshFor &&
+            cachedBundle.coversToday(clock.instant())
+        ) {
             return ForecastResult.Fresh(cachedBundle)
         }
 
         return try {
             val raw = provider.fetchRaw(coarse)
             val now = clock.instant()
-            val bundle = provider.parse(raw, coarse, now)
+            val bundle = provider.parse(raw, coarse, now).limitedToWindow(now)
             try {
                 cache.upsert(ForecastCacheEntity(cacheKey = key, payload = raw, fetchedAt = now.toEpochMilli()))
             } catch (e: CancellationException) {

@@ -56,6 +56,13 @@ object Fmt {
         date.dayOfWeek.getDisplayName(TextStyle.SHORT, es).replaceFirstChar { it.uppercase() } +
             " " + date.dayOfMonth
 
+    /** «Hoy» / «Mañana» respecto a `today` (el día local de la ubicación); otro día, su nombre corto. */
+    fun dayRelative(date: LocalDate, today: LocalDate): String = when (date) {
+        today -> "Hoy"
+        today.plusDays(1) -> "Mañana"
+        else -> dayShort(date)
+    }
+
     fun dayLong(date: LocalDate): String =
         DateTimeFormatter.ofPattern("EEEE d 'de' MMMM", es).format(date).replaceFirstChar { it.uppercase() }
 
