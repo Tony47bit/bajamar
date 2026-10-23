@@ -14,6 +14,7 @@ import com.pescasub.app.testing.bundle
 import com.pescasub.app.testing.location
 import com.pescasub.app.ui.conditions.ConditionsViewModel
 import com.pescasub.app.domain.visibility.ClarityFetch
+import com.pescasub.app.domain.visibility.ClimatologyObservation
 import com.pescasub.app.domain.visibility.NotEstimableReason
 import com.pescasub.app.domain.visibility.VisibilityEstimate
 import com.pescasub.app.domain.visibility.WaterClarityObservation
@@ -204,6 +205,8 @@ class ConditionsViewModelTest {
 
     private class FakeClarity(var fetch: () -> ClarityFetch) : WaterClarityRepository {
         var calls = 0
+        var typical: ClimatologyObservation? = null
+        override suspend fun climatology(coordinates: Coordinates, now: Instant) = typical
         override suspend fun latest(coordinates: Coordinates): ClarityFetch {
             calls++
             return fetch()
@@ -250,5 +253,14 @@ class ConditionsViewModelTest {
         assertNull(s.bundle)
         assertNull(s.visibility)
         assertEquals(0, clarity.calls)
+    }
+
+    @Test
+    fun withoutObservationTheTypicalValueOfTheZoneIsShownAsClimatological() {
+        val clarity = FakeClarity { ClarityFetch(null) }.also {
+            it.typical = ClimatologyObservation(0.17, 3, "Típica")
+        }
+        val e = vmWith(clarity).state.value.visibility as VisibilityEstimate.Climatological
+        assertEquals(5, e.minMeters)
     }
 }

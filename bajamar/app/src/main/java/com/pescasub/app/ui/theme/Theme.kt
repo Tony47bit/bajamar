@@ -73,3 +73,10 @@ fun BajamarTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Composabl
         content = content
     )
 }
+
+/** Escala del gráfico de visibilidad: de turbia (rojo) a clara (turquesa). Siempre va con cifras y texto. */
+object VisibilityColors {
+    val Scale = listOf(
+        Color(0xFFC0392B), Color(0xFFE08A1E), Color(0xFFE6C229), Color(0xFF6BBF59), Color(0xFF1FA8A0)
+    )
+}

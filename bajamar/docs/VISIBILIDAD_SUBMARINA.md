@@ -43,8 +43,16 @@ sin servidor propio) y cualquier modelo que no tenga relación física con la tr
 5. **Confianza**: solo **baja** o **media** (nunca «alta»; el producto no está validado en costa somera). Es una
    etiqueta cualitativa, **no una probabilidad**. Es media solo si: observación de ≤ 2 días, actualizada ahora,
    mar y lluvia sin recorte y con datos de ambos. Cualquier otra cosa → baja.
-6. **No estimable** (sin inventar): sin observación, observación de más de 7 días, valor fuera del rango válido
-   (0,01–6,0 1/m), NaN o fecha futura.
+6. **Capas** (`VisibilityResolver`): siempre se muestra la **mejor capa disponible** y la interfaz dice cuál es:
+   1. *Observación reciente* de satélite (≤ 7 días): rango en metros, confianza baja o media.
+   2. *Valor típico de la zona* en este mes (mediana de los compuestos mensuales `nesdisVHNSQkd490Monthly` de años
+      anteriores, mínimo 1; se muestra el nº de años en el modelo): rango en metros **punteado**, confianza **siempre
+      baja**, con el texto «no es el valor de hoy». El mar agitado o la lluvia siguen pudiendo recortarlo.
+   3. *Señal cualitativa del mar* (sin metros): «Posible visibilidad reducida» / «Sin señales de empeoramiento».
+      Solo valora si el oleaje o la lluvia recientes suelen enturbiar; no es una cifra.
+   4. **No estimable** solo si no hay ni observación, ni valor típico, ni datos de oleaje o lluvia; también si el
+      dato es inválido (fuera de 0,01–6,0 1/m, NaN, fecha futura) y no hay nada mejor.
+   Una capa inferior nunca se presenta como la superior.
 7. **Datos viejos**: si la red falla se usa la última observación guardada **marcándola explícitamente** como no
    actualizada, y la fecha de la observación se muestra siempre.
 
@@ -60,6 +68,11 @@ visibilidad en la bitácora), podrán ajustarse.
   Envía solo la posición redondeada a ~1 km. Caché en memoria 6 h.
 - `ui/conditions/VisibilityCard.kt` + textos en `ui/UiText.kt`: solo presentación.
 - `ConditionsViewModel` une las piezas y nunca bloquea la previsión si la visibilidad falla.
+
+## 3b. Presentación
+La tarjeta muestra un gráfico grande (escala de turbia a clara con el rango resaltado) y el rango en metros; los
+factores y el aviso quedan plegados bajo «¿Cómo se calcula?». Los colores de la escala son solo visuales: no
+equivalen a categorías calibradas, y las cifras van siempre junto al gráfico.
 
 ## 4. Qué datos mejorarían la estimación
 - Una fuente de turbidez/Kd con mayor resolución costera (p. ej. Sentinel‑2/3 procesado, o Copernicus Marine con

@@ -63,4 +63,39 @@ class ErddapKd490Test {
         assertTrue(url.contains("kd_490[last-6:1:last][(0.0)][(36.7200):1:(36.7200)][(-4.4200):1:(-4.4200)]"))
         assertTrue(!url.contains("key", ignoreCase = true))
     }
+
+    private fun at(date: String, kd: Double) =
+        com.pescasub.app.domain.visibility.WaterClarityObservation(kd, Instant.parse(date), "x")
+
+    @Test
+    fun typicalValueIsTheMedianOfTheSameSeasonInOtherYears() {
+        val all = listOf(
+            at("2023-10-16T12:00:00Z", 0.30), at("2024-10-17T12:00:00Z", 0.10), at("2025-10-15T12:00:00Z", 0.20),
+            at("2025-04-15T12:00:00Z", 0.90), // otra época: se ignora
+            at("2026-01-15T12:00:00Z", 0.80)
+        )
+        val t = ErddapKd490Parser.typicalForSeason(all, Instant.parse("2026-10-20T10:00:00Z"), "src")!!
+        assertEquals(0.20, t.kd490PerM, 1e-9)
+        assertEquals(3, t.samples)
+    }
+
+    @Test
+    fun seasonWindowWrapsAroundNewYear() {
+        val all = listOf(at("2024-12-28T12:00:00Z", 0.2), at("2025-01-03T12:00:00Z", 0.4))
+        val t = ErddapKd490Parser.typicalForSeason(all, Instant.parse("2026-01-01T00:00:00Z"), "src")!!
+        assertEquals(2, t.samples)
+    }
+
+    @Test
+    fun noSameSeasonDataMeansNoTypicalValue() {
+        val all = listOf(at("2025-04-15T12:00:00Z", 0.9))
+        assertNull(ErddapKd490Parser.typicalForSeason(all, Instant.parse("2026-10-20T10:00:00Z"), "src"))
+        assertNull(ErddapKd490Parser.typicalForSeason(emptyList(), Instant.parse("2026-10-20T10:00:00Z"), "src"))
+    }
+
+    @Test
+    fun climatologyRequestUsesTheMonthlyDatasetAndTheLast36Months() {
+        val url = ErddapClarityRepository(OkHttpClient()).buildClimatologyUrl(Coordinates(36.72, -4.42))
+        assertTrue(url.contains("nesdisVHNSQkd490Monthly.json?kd_490[last-35:1:last][(0.0)]"))
+    }
 }

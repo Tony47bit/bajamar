@@ -22,8 +22,8 @@ Análisis completo en [`docs/ANALISIS_FUNCIONAL.md`](docs/ANALISIS_FUNCIONAL.md)
 | **Perfil** | Eliminar todos los datos, qué sale del dispositivo, fuentes y licencias |
 
 **Honestidad de datos:** un valor ausente se muestra como «—» o «Sin datos», nunca como 0. La **visibilidad
-submarina** es una **estimación** (rango en metros con confianza baja/media) calculada a partir de una observación de
-satélite de la transparencia del agua; si no hay datos suficientes dice «no estimable». Ver
+submarina** es una **estimación** (rango en metros con confianza baja/media) con tres capas: observación reciente de satélite, valor típico de la zona
+en esa época y, si no hay nada, una señal cualitativa del mar sin metros. Solo dice «no estimable» sin ningún dato. Ver
 [`docs/VISIBILIDAD_SUBMARINA.md`](docs/VISIBILIDAD_SUBMARINA.md). Las mareas se calculan a partir del nivel
 del mar del modelo y **no son una tabla oficial**.
 
@@ -68,16 +68,16 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 | Qué | Estado |
 |---|---|
 | Compilación Gradle / generación del APK | **No realizada** (sin acceso a SDK ni repositorios Maven) |
-| Lógica de dominio, mapeo de Open-Meteo, repositorio meteorológico con caché y errores, formato, ventana hoy/mañana, visibilidad, validación de formularios, filtros y estadísticas | **152 pruebas ejecutadas y superadas**, compilando esas fuentes con `kotlinc` y JUnit 4 reales, pero con *stubs* mínimos de las anotaciones de Room/Retrofit y de `lifecycle`/`coroutines-test` (no son las librerías reales) |
-| ViewModels (crear/editar/eliminar jornada, capturas, fotos, condiciones, filtros, mapa, búsqueda, errores de red) | Incluidos en esas 152 pruebas, con las mismas salvedades |
-| `HttpErrorMappingTest`, `OpenMeteoJsonTest`, `ErddapKd490Test` (usan Retrofit, OkHttp y kotlinx.serialization reales) | Escritas, **no ejecutadas** (11 pruebas) |
+| Lógica de dominio, mapeo de Open-Meteo, repositorio meteorológico con caché y errores, formato, ventana hoy/mañana, visibilidad, validación de formularios, filtros y estadísticas | **167 pruebas ejecutadas y superadas**, compilando esas fuentes con `kotlinc` y JUnit 4 reales, pero con *stubs* mínimos de las anotaciones de Room/Retrofit y de `lifecycle`/`coroutines-test` (no son las librerías reales) |
+| ViewModels (crear/editar/eliminar jornada, capturas, fotos, condiciones, filtros, mapa, búsqueda, errores de red) | Incluidos en esas 167 pruebas, con las mismas salvedades |
+| `HttpErrorMappingTest`, `OpenMeteoJsonTest`, `ErddapKd490Test` (usan Retrofit, OkHttp y kotlinx.serialization reales) | Escritas, **no ejecutadas** (15 pruebas) |
 | `RoomPersistenceTest` (persistencia real, cascadas, reapertura de la base) y `NavigationTest` (Compose) | Escritas, **no ejecutadas** (14 pruebas instrumentadas) |
 | Código de interfaz Compose, osmdroid, ubicación, cámara/galería, Room/KSP | **Revisado a mano y con un verificador de imports, nunca compilado**. Es probable que la primera compilación muestre algún error menor |
 | Llamadas reales a Open-Meteo y a ERDDAP/NOAA (Kd490) | **No probadas** (host bloqueado); la URL de ERDDAP y la vigencia del dataset hay que comprobarlas con una consulta real. Los nombres de parámetros salen de la documentación conocida de la API; los JSON de las pruebas son ejemplos escritos a mano |
 | Diseño en pantalla, accesibilidad, rendimiento | **No comprobados** en dispositivo |
 
-Las 152 pruebas se ejecutaron fuera de Gradle, con `kotlinc` y JUnit sueltos y esos *stubs*, así que demuestran la
-lógica pero **no** sustituyen a la verificación real: `./gradlew testDebugUnitTest` (vías A, B o C) ejecuta las 163
+Las 167 pruebas se ejecutaron fuera de Gradle, con `kotlinc` y JUnit sueltos y esos *stubs*, así que demuestran la
+lógica pero **no** sustituyen a la verificación real: `./gradlew testDebugUnitTest` (vías A, B o C) ejecuta las 182
 unitarias con las librerías reales y es lo primero que conviene lanzar.
 
 ## Estructura

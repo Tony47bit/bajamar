@@ -19,7 +19,7 @@ import com.pescasub.app.domain.WeatherRepository
 import com.pescasub.app.domain.visibility.ClarityFetch
 import com.pescasub.app.domain.visibility.NoWaterClarity
 import com.pescasub.app.domain.visibility.VisibilityEstimate
-import com.pescasub.app.domain.visibility.VisibilityEstimator
+import com.pescasub.app.domain.visibility.VisibilityResolver
 import com.pescasub.app.domain.visibility.WaterClarityRepository
 import java.time.Clock
 import kotlinx.coroutines.CancellationException
@@ -134,12 +134,21 @@ class ConditionsViewModel(
         } catch (e: Exception) {
             ClarityFetch(null, refreshFailed = true)
         }
-        val estimate = VisibilityEstimator.estimate(
-            obs = fetch.observation,
+        val now = clock.instant()
+        val estimate = VisibilityResolver.resolve(
+            fetch = fetch,
+            climatology = {
+                try {
+                    clarity.climatology(spot.coordinates, now)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    null
+                }
+            },
             recent = bundle.recent,
             upcoming = bundle.hourly,
-            now = clock.instant(),
-            refreshFailed = fetch.refreshFailed
+            now = now
         )
         _state.update { it.copy(visibility = estimate, visibilityLoading = false) }
     }

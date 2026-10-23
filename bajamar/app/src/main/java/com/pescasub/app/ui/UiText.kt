@@ -48,31 +48,44 @@ const val RATING_DISCLAIMER =
 
 // --- Visibilidad submarina estimada (texto puro; el algoritmo vive en domain/visibility) ---
 
-const val VISIBILITY_TITLE = "Visibilidad submarina (estimación)"
+const val VISIBILITY_TITLE = "Visibilidad submarina"
 
 const val VISIBILITY_DISCLAIMER =
-    "Estimación a partir de un satélite con píxeles de unos 4 km, no una medición. La transparencia real del agua " +
+    "Estimación, no una medición. Se basa en un satélite con píxeles de unos 4 km: la transparencia real del agua " +
         "puede variar mucho en tu zona, sobre todo cerca de la costa. Compruébala siempre in situ."
 
-fun visibilityRangeText(e: com.pescasub.app.domain.visibility.VisibilityEstimate.Estimated): String {
-    val range = "${e.minMeters}–${e.maxMeters} m"
-    return if (e.upperCapped) "Hasta ~${e.maxMeters} m (rango $range)" else "Visibilidad estimada: $range"
-}
+/** Máximo de la escala del gráfico: el primer valor «redondo» que contiene el máximo estimado. */
+fun visibilityScaleMax(maxMeters: Int): Int =
+    listOf(10, 20, 30, 50, 100).firstOrNull { it >= maxMeters } ?: maxMeters
+
+/** «5–15 m» (sin decimales: el modelo no justifica más precisión). */
+fun visibilityRangeShort(minMeters: Int, maxMeters: Int): String = "$minMeters–$maxMeters m"
+
+fun visibilityRangeText(e: com.pescasub.app.domain.visibility.VisibilityEstimate.Estimated): String = visibilityRangeShort(e.minMeters, e.maxMeters)
 
 fun visibilityConfidenceText(c: com.pescasub.app.domain.visibility.VisibilityConfidence): String = when (c) {
-    com.pescasub.app.domain.visibility.VisibilityConfidence.LOW -> "Confianza: baja"
-    com.pescasub.app.domain.visibility.VisibilityConfidence.MEDIUM -> "Confianza: media"
+    com.pescasub.app.domain.visibility.VisibilityConfidence.LOW -> "Confianza baja"
+    com.pescasub.app.domain.visibility.VisibilityConfidence.MEDIUM -> "Confianza media"
 }
 
 fun visibilityNotEstimableText(r: com.pescasub.app.domain.visibility.NotEstimableReason): String = when (r) {
     com.pescasub.app.domain.visibility.NotEstimableReason.NO_OBSERVATION ->
-        "Visibilidad no estimable con los datos disponibles: no hay observación de satélite reciente para este " +
-            "punto (nubes, zona sin cobertura o sin conexión)."
+        "Visibilidad no estimable con los datos disponibles: no hay observación de satélite, valor típico de la " +
+            "zona ni datos de mar suficientes para este punto."
     com.pescasub.app.domain.visibility.NotEstimableReason.OBSERVATION_TOO_OLD ->
         "Visibilidad no estimable con los datos disponibles: la última observación de satélite es demasiado antigua."
     com.pescasub.app.domain.visibility.NotEstimableReason.INVALID_OBSERVATION ->
         "Visibilidad no estimable con los datos disponibles: el dato de satélite recibido no es coherente."
 }
+
+fun seaOutlookText(o: com.pescasub.app.domain.visibility.SeaOutlook): String = when (o) {
+    com.pescasub.app.domain.visibility.SeaOutlook.WORSE_THAN_USUAL -> "Posible visibilidad reducida"
+    com.pescasub.app.domain.visibility.SeaOutlook.NO_WARNING_SIGNS -> "Sin señales de empeoramiento"
+}
+
+const val SEA_OUTLOOK_NOTE =
+    "No hay datos de transparencia del agua para este punto, así que no se puede dar una cifra en metros. " +
+        "Esto solo valora si el mar o la lluvia recientes suelen enturbiar el agua."
 
 fun visibilityFactorText(f: com.pescasub.app.domain.visibility.VisibilityFactor): String = when (f) {
     com.pescasub.app.domain.visibility.VisibilityFactor.COARSE_SATELLITE ->

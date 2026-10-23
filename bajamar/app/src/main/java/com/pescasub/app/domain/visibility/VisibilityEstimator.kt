@@ -71,21 +71,12 @@ object VisibilityEstimator {
         if (age > Duration.ofDays(RECENT_MAX_AGE_DAYS)) factors += VisibilityFactor.OBSERVATION_AGED
         if (refreshFailed) factors += VisibilityFactor.REFRESH_FAILED
 
-        // Estado del mar desde la observación hasta dentro de 24 h.
-        val seaWindow = all.filter { !it.time.isBefore(obs.observedAt) && !it.time.isAfter(now.plus(LOOKAHEAD)) }
-        val waves = seaWindow.mapNotNull { it.waveHeightM }
-        val waveMissing = waves.isEmpty()
-        if (waveMissing) factors += VisibilityFactor.WAVE_DATA_MISSING
-        val rough = waves.any { it > ROUGH_WAVE_M }
-        if (rough) factors += VisibilityFactor.ROUGH_SEA
-
-        // Lluvia de las últimas 48 h.
-        val rainHours = all.filter { !it.time.isBefore(now.minus(RAIN_WINDOW)) && !it.time.isAfter(now) }
-            .mapNotNull { it.precipitationMm }
-        val rainMissing = rainHours.isEmpty()
-        if (rainMissing) factors += VisibilityFactor.RAIN_DATA_MISSING
-        val rainy = rainHours.sum() >= RAIN_NOTABLE_MM_48H
-        if (rainy) factors += VisibilityFactor.RECENT_RAIN
+        val sea = analyzeSea(all, from = obs.observedAt, now = now)
+        factors += sea.factors
+        val waveMissing = sea.waveMissing
+        val rainMissing = sea.rainMissing
+        val rough = sea.rough
+        val rainy = sea.rainy
 
         val secchi = SECCHI_FACTOR / obs.kd490PerM
         val capped = rough || rainy
@@ -101,6 +92,35 @@ object VisibilityEstimator {
             observedAt = obs.observedAt,
             sourceName = obs.sourceName,
             upperCapped = capped
+        )
+    }
+
+    /** Estado del mar y lluvia en la ventana `from`→+24 h (oleaje) y últimas 48 h (lluvia). */
+    internal data class SeaContext(
+        val rough: Boolean,
+        val rainy: Boolean,
+        val waveMissing: Boolean,
+        val rainMissing: Boolean
+    ) {
+        val factors: Set<VisibilityFactor>
+            get() = buildSet {
+                if (waveMissing) add(VisibilityFactor.WAVE_DATA_MISSING)
+                if (rough) add(VisibilityFactor.ROUGH_SEA)
+                if (rainMissing) add(VisibilityFactor.RAIN_DATA_MISSING)
+                if (rainy) add(VisibilityFactor.RECENT_RAIN)
+            }
+    }
+
+    internal fun analyzeSea(all: List<HourlyConditions>, from: Instant, now: Instant): SeaContext {
+        val waves = all.filter { !it.time.isBefore(from) && !it.time.isAfter(now.plus(LOOKAHEAD)) }
+            .mapNotNull { it.waveHeightM }
+        val rain = all.filter { !it.time.isBefore(now.minus(RAIN_WINDOW)) && !it.time.isAfter(now) }
+            .mapNotNull { it.precipitationMm }
+        return SeaContext(
+            rough = waves.any { it > ROUGH_WAVE_M },
+            rainy = rain.sum() >= RAIN_NOTABLE_MM_48H,
+            waveMissing = waves.isEmpty(),
+            rainMissing = rain.isEmpty()
         )
     }
 
