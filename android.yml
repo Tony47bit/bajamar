@@ -1,30 +1,67 @@
-
 name: Android CI
 
 on:
   push:
-    branches: ["main"]
+    branches: [main]
+  pull_request:
   workflow_dispatch:
 
 jobs:
-  inspect:
+  build:
+    name: Tests unitarios y APK de depuración
     runs-on: ubuntu-latest
-
     steps:
-      - name: Descargar repositorio
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Inspeccionar archivos
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Dar permiso de ejecución a gradlew
+        run: chmod +x gradlew
+
+      - name: Tests unitarios
+        run: ./gradlew --no-daemon testDebugUnitTest
+
+      - name: Compilar APK de depuración
+        run: ./gradlew --no-daemon assembleDebug
+
+      - name: Subir APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: bajamar-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+
+      - name: Subir informes de tests
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: informes-tests-unitarios
+          path: app/build/reports/tests/
+
+  instrumented:
+    name: Tests instrumentados (Room) en emulador
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Dar permiso de ejecución a gradlew
+        run: chmod +x gradlew
+      - name: Habilitar KVM
         run: |
-          echo "=== RAIZ DEL REPOSITORIO ==="
-          pwd
-          ls -la
-
-          echo "=== ARCHIVOS GRADLE ==="
-          find . -maxdepth 5 \
-            \( -name gradlew \
-            -o -name settings.gradle \
-            -o -name settings.gradle.kts \
-            -o -name build.gradle \
-            -o -name build.gradle.kts \) \
-            -type f -print
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          script: ./gradlew --no-daemon connectedDebugAndroidTest
